@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 import "./globals.css";
+import { Toaster } from "@/components/ui/toaster";
 
 const meta = {
   title: 'answers, how they should be displayed.',
@@ -31,16 +32,25 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       <body
         className={`font-sans antialiased ${GeistSans.variable} ${GeistMono.variable}`}
       >
+        <Toaster />
         {children}
       </body>
     </html>
