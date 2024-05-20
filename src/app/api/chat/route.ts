@@ -4,7 +4,7 @@ import { StreamData, StreamingTextResponse, streamText } from "ai";
 
 export const openai = createOpenAI({
     baseURL: "https://openkey.cloud/v1",
-    apiKey: "sk-IUM7KhNHgViTJk2VBe828297930c42CaAcAcE39f282e08Aa",
+    apiKey: process.env.OPENAI_API_KEY,
 })
 
 export const POST = async (req: Request) => {
