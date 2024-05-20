@@ -1,7 +1,7 @@
 'use server';
 
 import { CoreMessage, streamText } from "ai";
-import { openai } from "./api/chat/route";
+import { openai } from "../../api/chat/route";
 import { createStreamableValue } from "ai/rsc";
 
 export const continueConversation = async (messages: CoreMessage[]) => {
