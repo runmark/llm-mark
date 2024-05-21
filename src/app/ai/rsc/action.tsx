@@ -10,5 +10,9 @@ export const continueConversation = async (messages: CoreMessage[]) => {
         messages,
     });
 
-    return createStreamableValue(result.textStream).value;
+    const stream = createStreamableValue(result.textStream);
+
+    const data = { test: "hello" };
+
+    return { message: stream.value, data };
 };

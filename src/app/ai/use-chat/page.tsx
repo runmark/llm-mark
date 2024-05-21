@@ -4,6 +4,9 @@ import { useChat } from 'ai/react';
 
 export default function Chat() {
 
+    // useChat(): This package is framework agnostic 
+    // and provides simple abstractions for quickly building chat - like interfaces with LLMs.
+    // + app route
     const { messages, input, handleInputChange, handleSubmit, data } = useChat();
 
     return (
