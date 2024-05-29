@@ -5,9 +5,10 @@ import { OpenAIEmbeddings } from '@langchain/openai';
 import { OpenAI } from 'openai';
 import { config } from './config';
 import cheerio from "cheerio";
-import { TIMEOUT } from 'dns';
-import { ChevronLeftIcon } from '@radix-ui/react-icons';
-import { error } from 'console';
+import { Document as DocumentInterface } from 'langchain/document';
+import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import { MemoryVectorStore } from 'langchain/vectorstores/memory';
+
 // import { functionCalling } from './function-calling';
 // OPTIONAL: Use Upstash rate limiting to limit the number of requests per user
 
@@ -118,7 +119,7 @@ export const getBlueLinksContent = async (sources: SearchResult[]): Promise<Cont
             return $("body").text().replace(/\s+/g, " ").trim();
         } catch (err) {
             console.log("Error extracting main content: ", err);
-            throw error;
+            throw err;
         }
     };
 
@@ -131,6 +132,7 @@ export const getBlueLinksContent = async (sources: SearchResult[]): Promise<Cont
 
             const mainContent = extractMainContent(await response.text());
             return { ...source, html: mainContent };
+
         } catch (err) {
             return null;
         }
@@ -138,6 +140,7 @@ export const getBlueLinksContent = async (sources: SearchResult[]): Promise<Cont
 
     try {
         const results = await Promise.all(contentPromises);
+        // type prediction
         return results.filter((content): content is ContentResult => content !== null);
     } catch (err) {
         console.log(`Error fetching and processing blue links contents: `, err);
@@ -146,6 +149,35 @@ export const getBlueLinksContent = async (sources: SearchResult[]): Promise<Cont
 }
 
 // 4. process and vectorize content using Langchain
+export async function processAndVectorizeContent(
+    contents: ContentResult[],
+    query: string,
+    textChunkSize: number = config.textChunkSize,
+    textChunkOverlap: number = config.textChunkOverlap,
+    numberOfSimilarityResults: number = config.numberOfSimilarityResults
+): Promise<DocumentInterface[]> {
+
+    const allResults: DocumentInterface[] = [];
+
+    try {
+        contents.forEach(async (content, index) => {
+            if (content.html.length > 0) {
+                try {
+                    const splitText = await new RecursiveCharacterTextSplitter({ chunkSize: textChunkSize, chunkOverlap: textChunkOverlap }).splitText(content.html);
+                    const vectorStore = await MemoryVectorStore.fromTexts(splitText, { title: content.title, link: content.link }, embeddings);
+                    const contentResults = await vectorStore.similaritySearch(query, numberOfSimilarityResults);
+                    allResults.push(...contentResults);
+                } catch (err) {
+                    console.error(`Error processing content for ${content.link}: `, err);
+                }
+            }
+        });
+        return allResults;
+    } catch (err) {
+        console.error(`Error processing and vectoring content: `, err);
+        throw err;
+    }
+}
 
 // 5. fetch image search results from Serper API
 
