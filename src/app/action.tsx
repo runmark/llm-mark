@@ -180,8 +180,102 @@ export async function processAndVectorizeContent(
 }
 
 // 5. fetch image search results from Serper API
+export async function getImages(query: string): Promise<{ title: string, link: string }[]> {
+
+    const url = "https://google.serper.dev/images";
+    const data = JSON.stringify({ "q": query });
+    const requestOptions: RequestInit = {
+        method: "HOST",
+        headers: {
+            'X-API-KEY': process.env.SERPER_API as string,
+            'Content-Type': 'application/json',
+        },
+        body: data
+    };
+
+    try {
+        const response = await fetch(url, requestOptions);
+        if (!response.ok) {
+            throw new Error(`Network response was not ok. Status: ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        const validLinks = await Promise.all(
+            responseData.images.map(async (image: any) => {
+                const url = image.imageUrl;
+                if (typeof url === "string") {
+                    try {
+                        const response = await fetch(url, { method: "HEAD" });
+                        if (response.ok) {
+                            const contentType = response.headers.get('Content-Type');
+                            if (contentType && contentType.startsWith("image/")) {
+                                return { link: url, title: image.title };
+                            }
+                        }
+                    } catch (err) {
+                        console.log(`Error fetching image link ${url}:`, err);
+                    }
+                }
+                return null;
+            })
+        );
+        const filterLinks = validLinks.filter((link): link is { title: string; link: string } => link !== null);
+        return filterLinks.slice(0, 9);
+    } catch (err) {
+        console.log(`Error fetching images: `, err);
+        throw err;
+    }
+}
 
 // 6. fetch video search results from Serper API
+export async function getVideos(message: string): Promise<{ imageUrl: string, link: string }[] | null> {
+    const url = "https://google.serper.dev/videos";
+    const data = JSON.stringify({ "q": message });
+    const requestOptions: RequestInit = {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json',
+            "X-API-KEY": process.env.SERPER_API as string,
+        },
+        body: data
+    }
+
+    try {
+        const response = await fetch(url, requestOptions);
+        if (!response.ok) {
+            throw new Error(`Network response was not ok. Status: ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        const validLinks = await Promise.all(
+            responseData.videos.map(
+                async (video: any) => {
+                    const imgUrl = video.imageUrl;
+                    if (typeof imgUrl === 'string') {
+                        try {
+                            const imgResponse = await fetch(imgUrl, { method: "HEAD" });
+                            if (imgResponse.ok) {
+                                const contentType = imgResponse.headers.get('Content-Type');
+                                if (contentType && contentType.startsWith('image/')) {
+                                    return { imageUrl: imgUrl, link: video.link };
+                                }
+                            }
+                        } catch (err) {
+                            console.log(`Error fetching image link: ${imgUrl}: `, err);
+                        }
+                        return null;
+                    }
+                }
+            )
+        );
+        const filteredLinks = validLinks.filter((link): link is { imageUrl: string; link: string } => link !== null);
+        return filteredLinks.slice(0, 9);
+    } catch (err) {
+        console.log(`Error fetching videos: `, err);
+        throw err;
+    }
+
+}
 
 // 7. generate follow-up questions using OpenAI API
 
