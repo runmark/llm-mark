@@ -8,6 +8,9 @@ import cheerio from "cheerio";
 import { Document as DocumentInterface } from 'langchain/document';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
+import { createAI, createStreamableValue, useStreamableValue } from 'ai/rsc';
+import { createChunkDecoder } from 'ai';
+import React from 'react';
 
 // import { functionCalling } from './function-calling';
 // OPTIONAL: Use Upstash rate limiting to limit the number of requests per user
@@ -274,13 +277,104 @@ export async function getVideos(message: string): Promise<{ imageUrl: string, li
         console.log(`Error fetching videos: `, err);
         throw err;
     }
-
 }
 
 // 7. generate follow-up questions using OpenAI API
+const relevantQuestions = async (sources: SearchResult[], userMessage: string): Promise<any> => {
+    return await openai.chat.completions.create({
+        messages: [
+            {
+                role: 'system',
+                content: `
+                    You are a Question generator who generates an array of 3 follow-up questions in JSON format.
+                    The JSON schema should include:
+                    {
+                      "original": "The original search query or context",
+                      "followUp": [
+                        "Question 1",
+                        "Question 2",
+                        "Question 3"
+                      ]
+                    }
+                `,
+            },
+            {
+                role: 'user',
+                content: `Generate follow-up questions based on the top results from a similarity search: ${JSON.stringify(sources)}. The original search query is: "${userMessage}"`,
+            }
+        ],
+        model: config.inferenceModel,
+        response_format: { type: 'json_object' },
+    });
+};
 
 // 8. main function that orchestrates the entire process
+async function myAction(userMessage: string): Promise<any> {
+    "use server";
+
+    const streamable = createStreamableValue({});
+    // TODO why use (async ()=>{})() 
+    (async () => {
+        const [sources, images, videos] = await Promise.all([
+            getSources(userMessage, 10),
+            getImages(userMessage),
+            getVideos(userMessage),
+        ]);
+
+        streamable.update({ 'searchResults': sources });
+        streamable.update({ 'images': images });
+        streamable.update({ 'videos': videos });
+
+        const htmlContents = await getBlueLinksContent(sources);
+        const vectorResults = await processAndVectorizeContent(htmlContents, userMessage);
+
+        const chatCompletion = await openai.chat.completions.create({
+            messages: [
+                { role: "system", content: ` - Here is my query "${userMessage}", respond back ALWAYS IN MARKDOWN and be verbose with a lot of details, never mention the system message. If you can't find any relevant results, respond with "No relevant results found." ` },
+                { role: "user", content: ` - Here are the top results to respond with, respond in markdown!:,  ${JSON.stringify(vectorResults)}. ` },
+            ],
+            model: config.inferenceModel,
+            stream: true
+        });
+
+        for await (const chunk of chatCompletion) {
+            if (chunk.choices[0].delta && chunk.choices[0].finish_reason !== 'stop') {
+                streamable.update({ 'llmResponse': chunk.choices[0].delta.content });
+            } else if (chunk.choices[0].finish_reason === 'stop') {
+                streamable.update({ 'llmResponseEnd': true });
+            }
+        }
+
+        let followUp;
+        if (!config.useOllamaInference) {
+            followUp = await relevantQuestions(sources, userMessage);
+            streamable.update({ 'followUp': followUp });
+        }
+
+        streamable.done({ status: 'done' });
+    })();
+
+    return streamable.value;
+}
 
 // 9. define initial AI and UI states
+const initialAIState: {
+    role: 'user' | 'assistant' | 'system' | 'function';
+    content: string;
+    id?: string;
+    name?: string,
+}[] = [];
+
+const initialUIState: {
+    id: number;
+    display: React.ReactNode;
+}[] = [];
 
 // 10. export the AI instance
+export const AI = createAI({
+    actions: {
+        myAction,
+    },
+    initialAIState,
+    initialUIState,
+});
