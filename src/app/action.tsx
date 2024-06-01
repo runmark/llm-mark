@@ -2,15 +2,14 @@ import 'server-only';
 
 import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { OpenAIEmbeddings } from '@langchain/openai';
-import { OpenAI } from 'openai';
-import { config } from './config';
+import { createAI, createStreamableValue } from 'ai/rsc';
 import cheerio from "cheerio";
 import { Document as DocumentInterface } from 'langchain/document';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
-import { createAI, createStreamableValue, useStreamableValue } from 'ai/rsc';
-import { createChunkDecoder } from 'ai';
+import { OpenAI } from 'openai';
 import React from 'react';
+import { config } from './config';
 
 // import { functionCalling } from './function-calling';
 // OPTIONAL: Use Upstash rate limiting to limit the number of requests per user
