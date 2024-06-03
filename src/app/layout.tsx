@@ -3,6 +3,8 @@ import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { AI } from "./action";
+import Header from "@/components/header";
 
 const meta = {
   title: 'answers, how they should be displayed.',
@@ -51,7 +53,14 @@ export default function RootLayout({
         className={`font-sans antialiased ${GeistSans.variable} ${GeistMono.variable}`}
       >
         <Toaster />
-        {children}
+        <AI>
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex flex-col flex-1 bg-muted/50 dark:bg-background px-4">
+              {children}
+            </main>
+          </div>
+        </AI>
       </body>
     </html>
   );

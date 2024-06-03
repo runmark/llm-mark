@@ -25,7 +25,7 @@
     "@upstash/ratelimit": "^1.0.3",
     "@upstash/redis": "^1.30.0",
     "@vercel/analytics": "^1.2.2",
-    "ai": "^3.1.12",
+    "ai": "^3.1.22",
     "cheerio": "^1.0.0-rc.12",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
